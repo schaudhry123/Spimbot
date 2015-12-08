@@ -223,7 +223,8 @@ solve_puzzle_wait:
 	# Else	
 	# jal search_neighbors
 	
-	sw $v0, node_memory				# Store returned linked list into space we allocated
+	#sw $v0, node_memory				# Store returned linked list into space we allocated
+	sw $v0, node_address
 	sw $v0, SUBMIT_SOLUTION			#i hate samirs comments
 
 skip_puzzle_wait:
@@ -469,22 +470,22 @@ ls_done:
 .globl set_char
 set_char:
 	# Your code goes here :)
-	lw $t0, num_cols
-	mul $t1, $a1, $t0	# $t0 = row * num_cols
-	add $t1, $t1, $a2 	# $t0 += col
-	add $t2, $a0, $t1	# array[row * num_cols + col]
-	sb $a3, 0($t2)		# array[row * num_cols + col] = c
+	lw $v0, num_cols
+	mul $v0, $a1, $v0	# $t0 = row * num_cols
+	add $v0, $v0, $a2 	# $t0 += col
+	add $v0, $a0, $v0	# array[row * num_cols + col]
+	sb $a3, 0($v0)		# array[row * num_cols + col] = c
 	jr	$ra
 
 ## GETS A CHAR
 .globl get_char
 get_char:
 	# Your code goes here :)
-	lw $t0, num_cols
-	mul $t1, $a1, $t0	# $t0 = row * num_cols
-	add $t1, $t1, $a2 	# $t0 += col
-	add $t2, $a0, $t1	# array[row * num_cols + col]
-	lb $v0, 0($t2)		# store array[row * num_cols + col] in $v0
+	lw $v0, num_cols
+	mul $v0, $a1, $v0	# $t0 = row * num_cols
+	add $v0, $v0, $a2 	# $t0 += col
+	add $v0, $a0, $v0	# array[row * num_cols + col]
+	lb $v0, 0($v0)		# store array[row * num_cols + col] in $v0
 	jr	$ra
 
 ## FINDS THE FIRST CHAR OF THE WORD
@@ -557,7 +558,7 @@ sp_false:
 	j	sp_done
 
 sp_true:
-	li	$v0, 1			# true
+	move $v0, $s4			# true
 
 sp_done:
 	lw	$ra, 0($sp)
