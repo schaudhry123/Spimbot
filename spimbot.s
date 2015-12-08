@@ -229,8 +229,8 @@ solve_puzzle_wait:
 
 skip_puzzle_wait:
 	# Request puzzle
-	# la $s1, puzzle_grid
-	# sw $s1, REQUEST_PUZZLE
+	la $s1, puzzle_grid
+	sw $s1, REQUEST_PUZZLE
 
 	li $t0, 0
 	sw $t0, puzzle_received
