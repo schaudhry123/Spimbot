@@ -526,10 +526,13 @@ sp_col_for_cont:
 
 sp_col_next:
 	add	$s3, $s3, 1		# col++
+	# Free memory at node_address
+	la $s6, node_memory
+	sw $s6, node_address
 	j	sp_col_for
 
 sp_row_next:
-	add	$s2, $s2, 1		# row++
+	add	$s2, $s2, 1		# row++	
 	j	sp_row_for
 
 sp_false:
