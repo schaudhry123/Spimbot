@@ -52,6 +52,8 @@ num_smooshed: .word 0
 
 puzzle_received: .word 0
 
+num_puzzles_to_solve: .word 0
+
 .globl num_rows
 num_rows: .word 16
 .globl num_cols
@@ -102,6 +104,9 @@ main:
 	li $t0, 0
 	sw $t0, puzzle_received
 
+	li $t0, 20
+	sw $t0, num_puzzles_to_solve
+
 move_bottom:
 	lw $t0, BOT_Y
 	bge $t0, 294, look_for_fruit
@@ -139,9 +144,11 @@ move_left_or_right:
 wait_to_smoosh_fruit:				# If the same x-coord, wait for fruit to smoosh
 
 	# Check flag puzzle_received to solve puzzle
+	lw $t1, num_puzzles_to_solve
 	lw $t0, puzzle_received
+	beq $t1, 0, skip_solve_puzzle
 	beq $t0, 1, solve_puzzle_wait
-
+skip_solve_puzzle:
 	la $s0, fruit_data
 	sw $s0, FRUIT_SCAN
 	lw $t2, BOT_X 					# x-coord of bot
@@ -220,17 +227,14 @@ solve_puzzle_wait:
 
 	# Find the first letter of the word in the puzzle grid
 	jal solve_puzzle
-	# li $t0, -1 #i did this
-	# beq $v0, $t0, skip_puzzle_wait #i wrote this too 
-	# li $a2, 0
-	# li $a3, 0
-
-	# Else	
-	# jal search_neighbors
 	
 	#sw $v0, node_memory				# Store returned linked list into space we allocated
 	sw $v0, node_address
 	sw $v0, SUBMIT_SOLUTION			#i hate samirs comments
+
+	lw $t0, num_puzzles_to_solve
+	sub $t0, $t0, 1
+	sw $t0, num_puzzles_to_solve
 
 skip_puzzle_wait:
 	# Request puzzle
@@ -239,6 +243,8 @@ skip_puzzle_wait:
 
 	li $t0, 0
 	sw $t0, puzzle_received
+
+	bgt $t0, 0, solve_puzzle_wait
 
 	j look_for_fruit
 
