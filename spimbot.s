@@ -98,13 +98,13 @@ main:
 	sw $s1, REQUEST_PUZZLE
 
 	# Free memory at node_address
-	la $s6, node_memory
-	sw $s6, node_address
+	#la $s6, node_memory
+	#sw $s6, node_address
 
 	li $t0, 0
 	sw $t0, puzzle_received
 
-	li $t0, 20
+	li $t0, 13
 	sw $t0, num_puzzles_to_solve
 
 move_bottom:
@@ -118,7 +118,7 @@ move_bottom:
 	sw $t1, ANGLE_CONTROL
 
 	# Set velocity
-	li $t1, 10
+	li $t1, 15
 	sw $t1, VELOCITY
 
 	j move_bottom
@@ -322,6 +322,28 @@ sn_loop:
 	lw	$t1, directions+4($t0)	# directions[i][1]
 	add	$s6, $s3, $t1		# next_col
 
+	lw $t0, num_rows
+	lw $t1, num_cols
+
+	bge $s5, 0, sn_branch1	# if (next_row < 0)
+	add $s5, $s5, $t0		# next_row += num_rows
+sn_branch1:
+	blt $s5, $t0, sn_branch2
+	div $s5, $t0
+	mfhi $s5
+	#sub $s5, $s5, 1 
+
+sn_branch2:
+	bge $s6, 0, sn_branch3 	# if (next_col < 0)
+	add $s6, $s6, $t1		# next_col += num_cols
+
+sn_branch3:
+	blt $s6, $t1, sn_branch4
+	div $s6, $t1
+	mfhi $s6
+	#sub $s6, $s6, 1
+
+sn_branch4:
 	ble	$s5, -1, sn_next	# !(next_row > -1)
 	lw	$t0, num_rows
 	bge	$s5, $t0, sn_next	# !(next_row < num_rows)
@@ -643,7 +665,9 @@ request_puzzle_interrupt:
 	j	interrupt_dispatch	# see if other interrupts are waiting 
 
 out_of_energy_interrupt: 
-	lw $t0, puzzle_received #this is for you samir
+	lw $t0, num_puzzles_to_solve #this is for you samir
+	add $t0, $t0, 2				# num_puzzles_to_solve++
+	sw $t0, num_puzzles_to_solve
 	la $s1, puzzle_grid 	#i hate this a lot 
 	sw $s1, REQUEST_PUZZLE 	#you know what this does 
 	sw $t0, OUT_OF_ENERGY_ACK #you for sure do ok 

@@ -1,0 +1,39 @@
+Node *search_neighbors(char *puzzle, const char *word, int row, int col) {
+    if (word == NULL) {
+        return NULL;
+    }
+    for (int i = 0; i < 4; i++) {
+        int next_row = row + directions[i][0];
+        int next_col = col + directions[i][1];
+        // boundary check
+        if (next_row < 0) {
+            next_row += num_rows;
+        }
+        if (next_row >= num_rows) {
+            next_row = next_row % num_rows;
+        }
+        if (next_col < 0) {
+            next_col += num_cols;
+        }
+        if (next_col >= num_cols) {
+            next_col = next_col % num_cols;
+        }
+        if (puzzle[next_row * num_cols + next_col] == *word) {
+            if (*(word + 1) == '\0') {
+                return set_node(next_row, next_col, NULL);
+            }
+            // mark the spot on puzzle as visited
+            puzzle[next_row * num_cols + next_col] = '*';
+            // search for next char in the word
+            Node *next_node =
+                search_neighbors(puzzle, word + 1, next_row, next_col);
+            // unmark
+            puzzle[next_row * num_cols + next_col] = *word;
+            // if there is a valid neighbor, return the linked list
+            if (next_node) {
+                return set_node(next_row, next_col, next_node);
+            }
+        }
+    }
+    return NULL;
+}
