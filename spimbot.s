@@ -134,8 +134,8 @@ move_left_or_right:
 wait_to_smoosh_fruit:				# If the same x-coord, wait for fruit to smoosh
 
 	# Check flag puzzle_received to solve puzzle
-	#lw $t0, puzzle_received
-	#beq $t0, 1, wait_solve_puzzle
+	lw $t0, puzzle_received
+	beq $t0, 1, solve_puzzle_wait
 
 	la $s0, fruit_data
 	sw $s0, FRUIT_SCAN
@@ -198,41 +198,56 @@ move_left:					# Move left while x-coord of SPIMbot < x-coord of the fruit
 
 	j look_for_fruit
 
-wait_solve_puzzle:
+solve_puzzle_wait:
 	# Load puzzle from memory address
-	lw $a0, 8($s1)
+	la $s1, puzzle_grid
+	#lw $a0, 8($s1)
+	add $a0, $s1, 8
 	# Load word from word memory address
-	lw $a1, 0($s2)				# $a1 = word
+	la $s2, puzzle_word
+	move $a1, $s2
+	#lw $a1, 0($s2)				# $a1 = word
 	# Load num_rows and num_cols
 	lw $a2, 0($s1)					# num_rows
+	sw $a2, num_rows
 	lw $a3, 4($s1)					# num_cols
+	sw $a3, num_cols
 
 	# Find the first letter of the word in the puzzle grid
-	jal linear_search
-	li $t0, -1 #i did this
-	beq $v0, $t0, skip_puzzle_wait #i wrote this too 
+	jal solve_puzzle
+	# li $t0, -1 #i did this
+	# beq $v0, $t0, skip_puzzle_wait #i wrote this too 
+	# li $a2, 0
+	# li $a3, 0
 
 	# Else	
-	jal search_neighbors
+	# jal search_neighbors
 	
 	sw $v0, node_memory				# Store returned linked list into space we allocated
 	sw $v0, SUBMIT_SOLUTION			#i hate samirs comments
 
 skip_puzzle_wait:
 	# Request puzzle
-	la $s1, puzzle_grid
-	sw $s1, REQUEST_PUZZLE
+	# la $s1, puzzle_grid
+	# sw $s1, REQUEST_PUZZLE
 
-	j wait_to_smoosh_fruit
+	li $t0, 0
+	sw $t0, puzzle_received
 
-move_solve_puzzle:
+	j look_for_fruit
+
+solve_puzzle_move:
 	# Load puzzle from memory address
+	la $s1, puzzle_grid
 	lw $a0, 8($s1)
 	# Load word from word memory address
+	la $s2, puzzle_word
 	lw $a1, 0($s2)				# $a1 = word
 	# Load num_rows and num_cols
 	lw $a2, 0($s1)					# num_rows
+	sw $a2, num_rows
 	lw $a3, 4($s1)					# num_cols
+	sw $a3, num_cols
 
 	# Find the first letter of the word in the puzzle grid
 	jal linear_search
@@ -250,13 +265,17 @@ skip_puzzle_move:
 	la $s1, puzzle_grid
 	sw $s1, REQUEST_PUZZLE
 
-	j move_left_or_right
+	li $t0, 0
+	sw $t0, puzzle_received
+
+	j look_for_fruit
 
 #############################################################
 #################### Node methods ###########################
 #============================================================
 
 # Search neighbors method to solve the puzzle
+# search_neighbors(char *puzzle, const char *word, int row, int col)
 .globl search_neighbors
 search_neighbors:
 	bne	$a1, 0, sn_main		# !(word == NULL)
@@ -275,11 +294,11 @@ sn_main:
 	sw	$s6, 28($sp)
 	sw	$s7, 32($sp)
 
-	move	$s0, $a0		# puzzle
-	move	$s1, $a1		# word
-	move	$s2, $a2		# row
-	move	$s3, $a3		# col
-	li		$s4, 0			# i
+	move	$s0, $a0		# $s0 = puzzle
+	move	$s1, $a1		# $s1 = word
+	move	$s2, $a2		# $s2 = row
+	move	$s3, $a3		# $s3 = col
+	li		$s4, 0			# $s4 = i
 
 sn_loop:
 	mul	$t0, $s4, 8		# i * 8
@@ -445,6 +464,110 @@ ls_found_done:
 ls_done:
 	li $v0, -1
 	jr $ra
+
+## SETS A CHAR
+.globl set_char
+set_char:
+	# Your code goes here :)
+	lw $t0, num_cols
+	mul $t1, $a1, $t0	# $t0 = row * num_cols
+	add $t1, $t1, $a2 	# $t0 += col
+	add $t2, $a0, $t1	# array[row * num_cols + col]
+	sb $a3, 0($t2)		# array[row * num_cols + col] = c
+	jr	$ra
+
+## GETS A CHAR
+.globl get_char
+get_char:
+	# Your code goes here :)
+	lw $t0, num_cols
+	mul $t1, $a1, $t0	# $t0 = row * num_cols
+	add $t1, $t1, $a2 	# $t0 += col
+	add $t2, $a0, $t1	# array[row * num_cols + col]
+	lb $v0, 0($t2)		# store array[row * num_cols + col] in $v0
+	jr	$ra
+
+## FINDS THE FIRST CHAR OF THE WORD
+.globl solve_puzzle
+solve_puzzle:
+	sub	$sp, $sp, 24
+	sw	$ra, 0($sp)
+	sw	$s0, 4($sp)
+	sw	$s1, 8($sp)
+	sw	$s2, 12($sp)
+	sw	$s3, 16($sp)
+	sw	$s4, 20($sp)
+
+	move	$s0, $a0		# puzzle
+	move	$s1, $a1		# word
+
+	lb	$t0, 0($s1)		# word[0]
+	beq	$t0, 0, sp_true		# word[0] == '\0'
+
+	li	$s2, 0			# row = 0
+
+sp_row_for:
+	lw	$t0, num_rows
+	bge	$s2, $t0, sp_false	# !(row < num_rows)
+
+	li	$s3, 0			# col = 0
+
+sp_col_for:
+	lw	$t0, num_cols
+	bge	$s3, $t0, sp_row_next	# !(col < num_cols)
+
+	move	$a0, $s0		# puzzle
+	move	$a1, $s2		# row
+	move	$a2, $s3		# col
+	jal	get_char		# $v0 = current_char
+	lb	$t0, 0($s1)		# target_char = word[0]
+	bne	$v0, $t0, sp_col_next	# !(current_char == target_char)
+
+	move	$a0, $s0		# puzzle
+	move	$a1, $s2		# row
+	move	$a2, $s3		# col
+	li	$a3, '*'
+	jal	set_char
+
+	move	$a0, $s0		# puzzle
+	add	$a1, $s1, 1		# word + 1
+	move	$a2, $s2		# row
+	move	$a3, $s3		# col
+	jal	search_neighbors
+	move	$s4, $v0		# exist
+
+	move	$a0, $s0		# puzzle
+	move	$a1, $s2		# row
+	move	$a2, $s3		# col
+	lb	$a3, 0($s1)		# word[0]
+	jal	set_char
+
+	bne	$s4, 0, sp_true		# if (exist)
+
+sp_col_next:
+	add	$s3, $s3, 1		# col++
+	j	sp_col_for
+
+sp_row_next:
+	add	$s2, $s2, 1		# row++
+	j	sp_row_for
+
+sp_false:
+	li	$v0, 0			# false
+	j	sp_done
+
+sp_true:
+	li	$v0, 1			# true
+
+sp_done:
+	lw	$ra, 0($sp)
+	lw	$s0, 4($sp)
+	lw	$s1, 8($sp)
+	lw	$s2, 12($sp)
+	lw	$s3, 16($sp)
+	lw	$s4, 20($sp)
+	add	$sp, $sp, 24
+	jr	$ra
 
 
 
