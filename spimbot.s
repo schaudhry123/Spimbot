@@ -406,25 +406,22 @@ exitbai:
 # Sets the node to a certain value
 .globl set_node
 set_node:
-	
-	sub $sp, $sp, 16
-	sw $ra, 0($sp)
-	sw $a0, 4($sp)
-	sw $a1, 8($sp)
-	sw $a2, 12($sp)
+	sub	$sp, $sp, 16
+	sw	$ra, 0($sp)
+	sw	$a0, 4($sp)
+	sw	$a1, 8($sp)
+	sw	$a2, 12($sp)
 
-	jal allocate_new_node
+	jal	allocate_new_node
+	lw	$a0, 4($sp)	# row
+	sw	$a0, 0($v0)	# node->row = row
+	lw	$a1, 8($sp)	# col
+	sw	$a1, 4($v0)	# node->col = col
+	lw	$a2, 12($sp)	# next
+	sw	$a2, 8($v0)	# node->next = next
 
-	lw $a0, 4($sp)
-	lw $a1, 8($sp)
-	lw $a2, 12($sp)
-
-	sw $a0, 0($v0)
-	sw $a1, 4($v0)
-	sw $a2, 8($v0)
-
-	lw $ra, 0($sp)
-	add $sp, $sp, 16
+	lw	$ra, 0($sp)
+	add	$sp, $sp, 16
 	jr	$ra
 
 
@@ -463,7 +460,7 @@ get_char:
 ## FINDS THE FIRST CHAR OF THE WORD
 .globl solve_puzzle
 solve_puzzle:
-	sub	$sp, $sp, 32
+	sub	$sp, $sp, 28
 	sw	$ra, 0($sp)
 	sw	$s0, 4($sp)
 	sw	$s1, 8($sp)
@@ -471,11 +468,9 @@ solve_puzzle:
 	sw	$s3, 16($sp)
 	sw	$s4, 20($sp)
 	sw  $s5, 24($sp)		# $s5 = head
-	sw 	$s6, 28($sp)		# $s6 = check to see if first letter
 
 	move	$s0, $a0		# puzzle
 	move	$s1, $a1		# word
-
 
 	lb	$t0, 0($s1)		# word[0]
 	beq	$t0, 0, sp_true		# word[0] == '\0'
@@ -501,14 +496,11 @@ sp_col_for:
 	bne	$v0, $t0, sp_col_next	# !(current_char == target_char)
 
 	# if (target_char == word_0)
-	li $s5, 0 						# head = NULL
-	bne $s6, 0, sp_col_for_cont
-	jal allocate_new_node			# create the new head into $v0
+	move $a0, $s2
+	move $a1, $s3
+	move $a2, $0
+	jal set_node
 	move $s5, $v0					# copy it into $s5
-	sw $s2, 0($s5)					# head->row = row
-	sw $s3, 4($s5)					# head->col = col
-	sw $0,	8($s5)					# head->next = NULL
-	add $s6, $s6, 1 				# check++
 
 sp_col_for_cont:
 	move	$a0, $s0		# puzzle
@@ -545,7 +537,7 @@ sp_false:
 	j	sp_done
 
 sp_true:
-	sw $s4, 8($s5)
+	sw $s4, 8($s5) 
 	move $v0, $s5			# true
 
 sp_done:
