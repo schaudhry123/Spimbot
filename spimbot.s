@@ -87,6 +87,7 @@ main:
 	li 	$t0, BONK_MASK				# bonk interrupt bit
 	or 	$t0, $t0, FRUIT_SMOOSHED_INT_MASK		# smoosh interrupt bit
 	or  $t0, $t0, REQUEST_PUZZLE_INT_MASK 		# Enable request_puzzle_interrupt
+	or $t0, $t0, OUT_OF_ENERGY_INT_MASK 		# Enable out of energy interrupt
 	or	$t0, $t0, 1					# global interrupt enable
 	mtc0 $t0, $12					# set interrupt mask (Status register)
 
@@ -596,6 +597,9 @@ interrupt_dispatch:					# Interrupt:
 	and $t0, $k0, REQUEST_PUZZLE_INT_MASK		# is there a request puzzle interrupt?
 	bne $t0, 0, request_puzzle_interrupt
 
+	and $t0, $k0, OUT_OF_ENERGY_INT_MASK
+	bne $t0, 0, out_of_energy_interrupt
+
 	j	done
 
 smoosh_interrupt:
@@ -631,6 +635,13 @@ request_puzzle_interrupt:
 	# Acknowledge request puzzle interrupt after smashing fruits
 	sw	$t1, REQUEST_PUZZLE_ACK		# acknowledge bonk interrupt
 	j	interrupt_dispatch	# see if other interrupts are waiting 
+
+out_of_energy_interrupt: 
+	lw $t0, puzzle_received #this is for you samir
+	la $s1, puzzle_grid 	#i hate this a lot 
+	sw $s1, REQUEST_PUZZLE 	#you know what this does 
+	sw $t0, OUT_OF_ENERGY_ACK #you for sure do ok 
+	j interrupt_dispatch
 
 done:
 	la	$k0, chunkIH
