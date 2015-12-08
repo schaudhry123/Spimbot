@@ -94,6 +94,10 @@ main:
 	la $s1, puzzle_grid
 	sw $s1, REQUEST_PUZZLE
 
+	# Free memory at node_address
+	la $s6, node_memory
+	sw $s6, node_address
+
 	li $t0, 0
 	sw $t0, puzzle_received
 
@@ -260,6 +264,9 @@ solve_puzzle_move:
 
 	sw $v0, node_memory				# Store returned linked list into space we allocated
 	sw $v0, SUBMIT_SOLUTION			#i hate samirs comments	
+
+	la $s6, node_memory
+	sw $s6, node_address
 
 skip_puzzle_move: 
 	# Request puzzle
@@ -431,41 +438,6 @@ allocate_new_node:
 	sw	$t0, node_address
 	jr	$ra
 
-# node * linear_search(char *puzzle, char *word, int num_rows, int num_cols)
-# Linearly search through the matrix of characters to find the first instance of the passed in letter
-.globl linear_search
-linear_search:
-	li $t0, 0						# row = 0
-ls_outer_loop:
-	bge $t0, $a2, ls_done			# for (row < num_rows)
-	li $t1, 0						# col = 0
-ls_inner_loop:
-	bge $t1, $a3, ls_inner_loop_done		# for (col < row)
-	# Load puzzle[row][col]
-	mul $t2, $t0, $a3		# row * num_cols
-	add $t2, $t2, $t1		# next_row * num_cols + next_col
-	add $t3, $s1, $t2		# puzzle[row][col] 
-	lb 	$t4, 0($t3)			# char at puzzle[row][col]
-
-	# Load word[0]
-	lb 	$t5, 0($a1)			# word[0]
-	beq $t4, $t5, ls_found_done 		
-
-	add $t1, $t1, 1			# col++
-	j ls_inner_loop
-ls_inner_loop_done:
-	add $t0, $t0, 1 		# row++
-	j ls_outer_loop
-
-ls_found_done:
-	move $a2, $t0			# $a2 = row
-	move $a3, $t1			# $a3 = col
-	jr $ra
-
-ls_done:
-	li $v0, -1
-	jr $ra
-
 ## SETS A CHAR
 .globl set_char
 set_char:
@@ -491,16 +463,19 @@ get_char:
 ## FINDS THE FIRST CHAR OF THE WORD
 .globl solve_puzzle
 solve_puzzle:
-	sub	$sp, $sp, 24
+	sub	$sp, $sp, 32
 	sw	$ra, 0($sp)
 	sw	$s0, 4($sp)
 	sw	$s1, 8($sp)
 	sw	$s2, 12($sp)
 	sw	$s3, 16($sp)
 	sw	$s4, 20($sp)
+	sw  $s5, 24($sp)		# $s5 = head
+	sw 	$s6, 28($sp)		# $s6 = check to see if first letter
 
 	move	$s0, $a0		# puzzle
 	move	$s1, $a1		# word
+
 
 	lb	$t0, 0($s1)		# word[0]
 	beq	$t0, 0, sp_true		# word[0] == '\0'
@@ -520,10 +495,22 @@ sp_col_for:
 	move	$a0, $s0		# puzzle
 	move	$a1, $s2		# row
 	move	$a2, $s3		# col
+	li $s6, 0 				# set check for first letter to 0
 	jal	get_char		# $v0 = current_char
 	lb	$t0, 0($s1)		# target_char = word[0]
 	bne	$v0, $t0, sp_col_next	# !(current_char == target_char)
 
+	# if (target_char == word_0)
+	li $s5, 0 						# head = NULL
+	bne $s6, 0, sp_col_for_cont
+	jal allocate_new_node			# create the new head into $v0
+	move $s5, $v0					# copy it into $s5
+	sw $s2, 0($s5)					# head->row = row
+	sw $s3, 4($s5)					# head->col = col
+	sw $0,	8($s5)					# head->next = NULL
+	add $s6, $s6, 1 				# check++
+
+sp_col_for_cont:
 	move	$a0, $s0		# puzzle
 	move	$a1, $s2		# row
 	move	$a2, $s3		# col
@@ -558,7 +545,8 @@ sp_false:
 	j	sp_done
 
 sp_true:
-	move $v0, $s4			# true
+	sw $s4, 8($s5)
+	move $v0, $s5			# true
 
 sp_done:
 	lw	$ra, 0($sp)
@@ -567,7 +555,8 @@ sp_done:
 	lw	$s2, 12($sp)
 	lw	$s3, 16($sp)
 	lw	$s4, 20($sp)
-	add	$sp, $sp, 24
+	lw 	$s5, 24($sp)
+	add	$sp, $sp, 28
 	jr	$ra
 
 
