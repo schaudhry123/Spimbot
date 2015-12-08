@@ -86,6 +86,7 @@ main:
 	# Enable interrupts
 	li 	$t0, BONK_MASK				# bonk interrupt bit
 	or 	$t0, $t0, FRUIT_SMOOSHED_INT_MASK		# smoosh interrupt bit
+	or  $t0, $t0, REQUEST_PUZZLE_INT_MASK 		# Enable request_puzzle_interrupt
 	or	$t0, $t0, 1					# global interrupt enable
 	mtc0 $t0, $12					# set interrupt mask (Status register)
 
@@ -126,16 +127,15 @@ look_for_fruit:
 	# Get x coordinate of first fruit and SPIMbot
 	lw $t4, 8($s0)	# x-coord of first fruit
 	lw $t2, BOT_X 	# x-coord of bot
+move_left_or_right:
 	# If x-coord of fruit > x-coord of SPIMbot, move right. Else, move left.
 	bgt $t4, $t2, move_right
 	blt $t4, $t2, move_left
 wait_to_smoosh_fruit:				# If the same x-coord, wait for fruit to smoosh
 
-	sw $zero, VELOCITY
-
 	# Check flag puzzle_received to solve puzzle
-	lw $t0, puzzle_received
-	beq $t0, 1, wait_solve_puzzle
+	#lw $t0, puzzle_received
+	#beq $t0, 1, wait_solve_puzzle
 
 	la $s0, fruit_data
 	sw $s0, FRUIT_SCAN
@@ -462,6 +462,9 @@ interrupt_handler:
 	#########################################################
 	# REMEMBER TO SAVE REGSITERS AND RESTORE AFTER INTERRUPTS
 	#########################################################
+
+	# POTENSH
+	# add timer
 
 
 	sw	$t0, 0($k0)					# Get some free registers
