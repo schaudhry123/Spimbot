@@ -35,7 +35,7 @@ REQUEST_PUZZLE_INT_MASK = 0x800
 REQUEST_WORD = 0xffff00dc
 
 # Make sure space is aligned to 2^2 bits
-.data
+.data:
 
 .align 2 
 fruit_data: .space 260
@@ -50,21 +50,10 @@ node_memory: .space 4096
 
 num_smooshed: .word 0
 
-puzzle_received: .word 0
-
 .globl num_rows
 num_rows: .word 16
 .globl num_cols
 num_cols: .word 16
-
-.globl directions
-directions:
-	.word  0  0
-	.word -1  0
-	.word  0  1
-	.word  1  0
-	.word  0 -1
-
 
 .text
 main:
@@ -93,8 +82,6 @@ main:
 	la $s1, puzzle_grid
 	sw $s1, REQUEST_PUZZLE
 
-	li $t0, 0
-	sw $t0, puzzle_received
 
 move_bottom:
 	lw $t0, BOT_Y
@@ -131,33 +118,25 @@ look_for_fruit:
 	blt $t4, $t2, move_left
 wait_to_smoosh_fruit:				# If the same x-coord, wait for fruit to smoosh
 
-	sw $zero, VELOCITY
-
-	# Check flag puzzle_received to solve puzzle
-	lw $t0, puzzle_received
-	beq $t0, 1, wait_solve_puzzle
-
 	la $s0, fruit_data
 	sw $s0, FRUIT_SCAN
-	lw $t2, BOT_X 					# x-coord of bot
-	lw $t4, 8($s0) 					# x-coord of fruit
+	lw $t2, BOT_X
+	lw $t4, 8($s0) #original id 
 	#bne $t4, 0, wait_to_smoosh_fruit
-	#beq $t2, $t4, smash_fruit
-
-	j smash_fruit
+	beq $t2, $t4, smash_fruit
 
 	## WAIT TO SMOOSH THE FRUIT ##
-
+	sw $zero, VELOCITY
 
 	# Wait for fruit until it smashes
-	#la $s0, fruit_data
-	#sw $s0, FRUIT_SCAN
+	la $s0, fruit_data
+	sw $s0, FRUIT_SCAN
 
 	# Get id of first fruit in the array
-	#lw $t9, 0($s0)
+	lw $t9, 0($s0)
 	# If the id = the id of the fruit we are smooshing, keep waiting
-	#beq $t3, $t9, wait_to_smoosh_fruit
-	#j look_for_fruit
+	beq $t3, $t9, wait_to_smoosh_fruit
+	j look_for_fruit
 
 smash_fruit:
 	# Orient SPIMbot to face downwards
@@ -198,59 +177,6 @@ move_left:					# Move left while x-coord of SPIMbot < x-coord of the fruit
 
 	j look_for_fruit
 
-wait_solve_puzzle:
-	# Load puzzle from memory address
-	lw $a0, 8($s1)
-	# Load word from word memory address
-	lw $a1, 0($s2)				# $a1 = word
-	# Load num_rows and num_cols
-	lw $a2, 0($s1)					# num_rows
-	lw $a3, 4($s1)					# num_cols
-
-	# Find the first letter of the word in the puzzle grid
-	jal linear_search
-	li $t0, -1 #i did this
-	beq $v0, $t0, skip_puzzle_wait #i wrote this too 
-
-	# Else	
-	jal search_neighbors
-	
-	sw $v0, node_memory				# Store returned linked list into space we allocated
-	sw $v0, SUBMIT_SOLUTION			#i hate samirs comments
-
-skip_puzzle_wait:
-	# Request puzzle
-	la $s1, puzzle_grid
-	sw $s1, REQUEST_PUZZLE
-
-	j wait_to_smoosh_fruit
-
-move_solve_puzzle:
-	# Load puzzle from memory address
-	lw $a0, 8($s1)
-	# Load word from word memory address
-	lw $a1, 0($s2)				# $a1 = word
-	# Load num_rows and num_cols
-	lw $a2, 0($s1)					# num_rows
-	lw $a3, 4($s1)					# num_cols
-
-	# Find the first letter of the word in the puzzle grid
-	jal linear_search
-	li $t0, -1 #i did this
-	beq $v0, $t0, skip_puzzle_move #i wrote this too 
-
-	# Else	
-	jal search_neighbors
-
-	sw $v0, node_memory				# Store returned linked list into space we allocated
-	sw $v0, SUBMIT_SOLUTION			#i hate samirs comments	
-
-skip_puzzle_move: 
-	# Request puzzle
-	la $s1, puzzle_grid
-	sw $s1, REQUEST_PUZZLE
-
-	j move_left_or_right
 
 #############################################################
 #################### Node methods ###########################
@@ -329,7 +255,7 @@ sn_search:
 
 sn_next:
 	add	$s4, $s4, 1		# i++
-	blt	$s4, 5, sn_loop		# i < 4
+	blt	$s4, 4, sn_loop		# i < 4
 	
 	li	$v0, 0			# return NULL (data flow)
 
@@ -411,40 +337,6 @@ allocate_new_node:
 	sw	$t0, node_address
 	jr	$ra
 
-# node * linear_search(char *puzzle, char *word, int num_rows, int num_cols)
-# Linearly search through the matrix of characters to find the first instance of the passed in letter
-.globl linear_search
-linear_search:
-	li $t0, 0						# row = 0
-ls_outer_loop:
-	bge $t0, $a2, ls_done			# for (row < num_rows)
-	li $t1, 0						# col = 0
-ls_inner_loop:
-	bge $t1, $a3, ls_inner_loop_done		# for (col < row)
-	# Load puzzle[row][col]
-	mul $t2, $t0, $a3		# row * num_cols
-	add $t2, $t2, $t1		# next_row * num_cols + next_col
-	add $t3, $s1, $t2		# puzzle[row][col] 
-	lb 	$t4, 0($t3)			# char at puzzle[row][col]
-
-	# Load word[0]
-	lb 	$t5, 0($a1)			# word[0]
-	beq $t4, $t5, ls_found_done 		
-
-	add $t1, $t1, 1			# col++
-	j ls_inner_loop
-ls_inner_loop_done:
-	add $t0, $t0, 1 		# row++
-	j ls_outer_loop
-
-ls_found_done:
-	move $a2, $t0			# $a2 = row
-	move $a3, $t1			# $a3 = col
-	jr $ra
-
-ls_done:
-	li $v0, -1
-	jr $ra
 
 
 
@@ -458,12 +350,6 @@ interrupt_handler:
 	move	$k1, $at				# Save $at
 .set at
 	la	$k0, chunkIH
-
-	#########################################################
-	# REMEMBER TO SAVE REGSITERS AND RESTORE AFTER INTERRUPTS
-	#########################################################
-
-
 	sw	$t0, 0($k0)					# Get some free registers
 	sw	$t1, 4($k0)					# by storing them to a global variable
 
@@ -511,11 +397,21 @@ done_smashing:
 
 request_puzzle_interrupt:
 	la $s2, puzzle_word				# Load the address of the space we allocated for the word
-	sw $s2, REQUEST_WORD			# Request the word
+	sw $s2, REQUEST_WORD			# 
 
-	# Mark puzzle_received as true
-	li $t0, 1
-	sw $t0, puzzle_received
+	# REMEMBER TO SAVE REGSITERS AND RESTORE AFTER INTERRUPTS
+	move $a0, $s2		# $a0 = puzzle
+	move $a1, $s3		# $a1 = word
+	move $a2, $zero		# change pls 
+	move $a3, $zero		# same
+	jal search_neighbors
+
+	sw $v0, node_memory				# Store returned linked list into space we allocated
+	sw $v0, SUBMIT_SOLUTION
+
+	# Request a puzzle
+	la $s1, puzzle_grid
+	sw $s1, REQUEST_PUZZLE
 
 	# Acknowledge request puzzle interrupt after smashing fruits
 	sw	$t1, REQUEST_PUZZLE_ACK		# acknowledge bonk interrupt
