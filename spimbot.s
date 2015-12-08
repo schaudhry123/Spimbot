@@ -104,7 +104,7 @@ main:
 	li $t0, 0
 	sw $t0, puzzle_received
 
-	li $t0, 13
+	li $t0, 2
 	sw $t0, num_puzzles_to_solve
 
 move_bottom:
@@ -155,6 +155,8 @@ skip_solve_puzzle:
 	lw $t4, 8($s0) 					# x-coord of fruit
 	#bne $t4, 0, wait_to_smoosh_fruit
 	#beq $t2, $t4, smash_fruit
+	lw $t1, num_smooshed
+	beq $t1, 0, move_up
 
 	j smash_fruit
 
@@ -173,6 +175,9 @@ skip_solve_puzzle:
 
 smash_fruit:
 	# Orient SPIMbot to face downwards
+	lw $t1, num_smooshed
+	beq $t1, 0, look_for_fruit
+
 	li $t0, 90				# +y = 90
 	sw $t0, ANGLE
 	li $t0, 1 				# Absolute angle
@@ -180,9 +185,6 @@ smash_fruit:
 	# Move SPIMbot to the bottom of the screen
 	li $t1, 10
 	sw $t1, VELOCITY
-
-	lw $t1, num_smooshed
-	beq $t1, 0, look_for_fruit
 
 	j smash_fruit
 
@@ -208,6 +210,25 @@ move_left:					# Move left while x-coord of SPIMbot < x-coord of the fruit
 	li $t1, 10
 	sw $t1, VELOCITY
 
+	j look_for_fruit
+
+move_up:
+	lw $t0, BOT_Y
+	ble $t0, 240, move_up_stop
+
+	# Orient SPIMbot
+	li $t1, 270				# +y = 90
+	sw $t1, ANGLE
+	li $t1, 1 				# Absolute angle
+	sw $t1, ANGLE_CONTROL
+
+	# Set velocity
+	li $t1, 10
+	sw $t1, VELOCITY
+
+	j look_for_fruit
+move_up_stop:
+	sw $zero, VELOCITY
 	j look_for_fruit
 
 solve_puzzle_wait:
@@ -666,7 +687,7 @@ request_puzzle_interrupt:
 
 out_of_energy_interrupt: 
 	lw $t0, num_puzzles_to_solve #this is for you samir
-	add $t0, $t0, 2				# num_puzzles_to_solve++
+	add $t0, $t0, 5				# num_puzzles_to_solve++
 	sw $t0, num_puzzles_to_solve
 	la $s1, puzzle_grid 	#i hate this a lot 
 	sw $s1, REQUEST_PUZZLE 	#you know what this does 
