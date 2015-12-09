@@ -198,6 +198,11 @@ move_right: 				# Move right since x-coord of SPIMbot > x-coord of the fruit
 	li $t1, 10
 	sw $t1, VELOCITY
 
+	lw $t1, num_puzzles_to_solve
+	lw $t0, puzzle_received
+	beq $t1, 0, move_right_skip
+	beq $t0, 1, solve_puzzle_wait
+move_right_skip:
 	j look_for_fruit
 
 move_left:					# Move left while x-coord of SPIMbot < x-coord of the fruit
@@ -210,6 +215,11 @@ move_left:					# Move left while x-coord of SPIMbot < x-coord of the fruit
 	li $t1, 10
 	sw $t1, VELOCITY
 
+	lw $t1, num_puzzles_to_solve
+	lw $t0, puzzle_received
+	beq $t1, 0, move_left_skip
+	beq $t0, 1, solve_puzzle_wait
+move_left_skip:
 	j look_for_fruit
 
 move_up:
